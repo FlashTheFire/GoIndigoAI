@@ -1,0 +1,16 @@
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+httpx>=0.25.0
+tenacity>=8.2.0
+schedule>=1.2.1
+pytest>=7.4.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+playwright>=1.40.0
+pandas>=2.0.0
+openpyxl>=3.1.0
+python-multipart>=0.0.9
+img2table>=1.2.0
+paddlepaddle>=2.6.0
+paddleocr>=2.7.0
+

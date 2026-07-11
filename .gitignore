@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Unit test / coverage reports
+.pytest_cache/
+.cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv/
+Scripts/
+Lib/
+Include/
+
+# IDE configurations
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Credentials and Local Secrets
+.env
+.env.local
+
+# Project Specific Data & Caches
+.cops_browser_profile/
+DEL_Flights_*.csv
+mpos_allocation_day.csv
+mpos_allocation_day.xlsx
+scratch/

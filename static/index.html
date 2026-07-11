@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoIndigo Automation Console</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/bulk_upload.css">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="app-navbar">
+        <div class="navbar-left">
+            <div class="logo" onclick="toggleSidebar()" style="cursor: pointer; display: flex; align-items: center; gap: 8px;" title="Toggle Sidebar">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M2 22 L22 2 M12 2 L2 12 M22 12 L12 22" />
+                </svg>
+                <span>IndigoAI</span>
+            </div>
+            <div class="version">v1.2.0</div>
+        </div>
+        <div class="navbar-right">
+            <div class="connection-status">
+                <span class="connection-indicator dot dot-green"></span>
+                <span class="connection-text">Server Connected</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar overlay backdrop for mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <div class="app-container">
+        <!-- Sidebar: Configuration & Controls -->
+        <aside class="sidebar" id="app-sidebar">
+            <!-- Mobile Close Button -->
+            <button class="btn-close-sidebar" onclick="toggleSidebar()" aria-label="Close Sidebar">&times;</button>
+            
+            <div class="sidebar-header">
+                <div class="logo" onclick="toggleSidebar()" style="cursor: pointer;" title="Toggle Sidebar">
+                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <path d="M2 22 L22 2 M12 2 L2 12 M22 12 L12 22" />
+                    </svg>
+                    <span>IndigoAI</span>
+                </div>
+                <div class="version">v1.2.0</div>
+            </div>
+
+            <!-- Scheduler Status Widget -->
+            <div class="card status-card">
+                <div class="status-header">
+                    <h3>Scheduler Status</h3>
+                    <div id="scheduler-pulse" class="pulse-indicator"></div>
+                </div>
+                <div class="status-metrics">
+                    <div class="status-item">
+                        <span class="label">State:</span>
+                        <span id="scheduler-state-text" class="value badge">Loading...</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Last Poll:</span>
+                        <span id="scheduler-last-run" class="value">Never</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="label">Next Poll:</span>
+                        <span id="scheduler-next-run" class="value">Never</span>
+                    </div>
+                </div>
+                <div class="status-actions">
+                    <button id="btn-toggle-scheduler" class="btn btn-primary" onclick="toggleScheduler()">
+                        Pause Scheduler
+                    </button>
+                </div>
+            </div>
+
+            <!-- Manual Sync Controller -->
+            <div class="card control-card">
+                <h3>Manual Trigger</h3>
+                <p class="description">Fetch and process flight schedules for a specific date.</p>
+                <div class="form-group date-selector-group">
+                    <label for="input-sync-date">Target Date (DD/MM/YYYY)</label>
+                    <div class="date-input-wrapper">
+                        <input type="text" id="input-sync-date" class="form-control code-font" placeholder="DD/MM/YYYY" maxlength="10">
+                        <button type="button" class="date-picker-icon-btn" onclick="openNativeDatePicker()" aria-label="Open Calendar">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="16" y1="2" x2="16" y2="6"></line>
+                                <line x1="8" y1="2" x2="8" y2="6"></line>
+                                <line x1="3" y1="10" x2="21" y2="10"></line>
+                            </svg>
+                        </button>
+                        <!-- Hidden native date picker -->
+                        <input type="date" id="hidden-date-picker" style="position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; top: 0; left: 0;">
+                    </div>
+                </div>
+                <button id="btn-trigger-sync" class="btn btn-accent" onclick="triggerManualSync()">
+                    Fetch Flights
+                </button>
+            </div>
+
+            <!-- App Configuration -->
+            <div class="card settings-card">
+                <h3>System Settings</h3>
+                <form id="form-settings" onsubmit="saveSettings(event)">
+                    <div class="form-group">
+                        <label for="input-poll-interval">Poll Interval (seconds)</label>
+                        <input type="number" id="input-poll-interval" class="form-control" min="10" required>
+                    </div>
+
+                    <div class="form-group inline-group">
+                        <label for="input-dry-run">Dry Run Mode</label>
+                        <div class="toggle-switch">
+                            <input type="checkbox" id="input-dry-run">
+                            <span class="slider"></span>
+                        </div>
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="input-log-level">Log Level</label>
+                        <select id="input-log-level" class="form-control">
+                            <option value="DEBUG">DEBUG</option>
+                            <option value="INFO">INFO</option>
+                            <option value="WARNING">WARNING</option>
+                            <option value="ERROR">ERROR</option>
+                        </select>
+                    </div>
+
+                    <div class="divider">Authentication Cookies</div>
+
+                    <button type="button" id="btn-auto-login" class="btn btn-accent" style="margin-bottom: 15px; width: 100%;" onclick="triggerAutoLogin()">
+                        Auto Authenticate (Browser)
+                    </button>
+
+                    <div class="form-group">
+                        <label for="cookie-copsweb02">COPSWeb02</label>
+                        <textarea id="cookie-copsweb02" class="form-control code-font" rows="2" placeholder="Base64 auth payload"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cookie-copsweb021">COPSWeb021</label>
+                        <textarea id="cookie-copsweb021" class="form-control code-font" rows="2" placeholder="Base64 auth payload"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cookie-session">ASP.NET_SessionId</label>
+                        <input type="text" id="cookie-session" class="form-control code-font" placeholder="Session cookie string">
+                    </div>
+
+                    <button type="submit" id="btn-save-settings" class="btn btn-secondary">
+                        Save & Apply Config
+                    </button>
+                </form>
+            </div>
+
+            <!-- Bulk MPOS Upload -->
+            <div class="divider">Automation</div>
+            <button type="button" class="btn btn-accent" onclick="openBulkModal()" style="display:flex;align-items:center;gap:8px;">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                Bulk MPOS Upload
+            </button>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <!-- Header Bar -->
+             <header class="main-header">
+                 <div style="display: flex; align-items: center; gap: 16px;">
+                     <div class="desktop-sidebar-toggle" onclick="toggleSidebar()" title="Expand Sidebar">
+                         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5">
+                             <path d="M2 22 L22 2 M12 2 L2 12 M22 12 L12 22" />
+                         </svg>
+                     </div>
+                     <div class="header-title">
+                         <h1>Operations Console</h1>
+                         <p class="subtitle">Indigo Flight Scheduling & Dispatch Automator</p>
+                     </div>
+                 </div>
+                 <div class="connection-status desktop-only">
+                     <span class="connection-indicator dot dot-green"></span>
+                     <span class="connection-text">Server Connected</span>
+                 </div>
+             </header>
+
+            <!-- Metrics Dashboard Grid -->
+            <section class="metrics-grid">
+                <div class="metric-card card">
+                    <div class="metric-icon metric-flights">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-label">Total Flights</span>
+                        <h2 id="metric-total-flights" class="metric-value">0</h2>
+                    </div>
+                </div>
+
+                <div class="metric-card card danger-glow">
+                    <div class="metric-icon metric-early">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-label">Early Mornings (05:xx)</span>
+                        <h2 id="metric-early-flights" class="metric-value">0</h2>
+                    </div>
+                </div>
+
+                <div class="metric-card card">
+                    <div class="metric-icon metric-topup">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-label">Top Up Flights</span>
+                        <h2 id="metric-topup-flights" class="metric-value">0</h2>
+                    </div>
+                </div>
+
+                <div class="metric-card card">
+                    <div class="metric-icon metric-caterer">
+                        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                    </div>
+                    <div class="metric-info">
+                        <span class="metric-label">Unique Caterers</span>
+                        <h2 id="metric-caterers" class="metric-value">0</h2>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Flights Viewer (Search, Filter, Table) -->
+            <section class="card flights-card">
+                <div class="section-header">
+                    <div class="header-details">
+                        <h2>Flight Dispatch Records</h2>
+                        <span id="active-file-label" class="file-label">Loading latest data...</span>
+                    </div>
+                    <div class="search-filters">
+                        <!-- Search Box -->
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
+                                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                            <input type="text" id="input-search" placeholder="Search flight, caterer, categories..." oninput="filterFlightsTable()">
+                        </div>
+                        
+                        <!-- File Selector Dropdown -->
+                        <select id="select-csv-file" class="form-control" onchange="loadSelectedCSV()">
+                            <option value="">-- Load CSV --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table id="flights-table">
+                        <thead>
+                            <tr>
+                                <th>Flight Date & Time</th>
+                                <th>Flight No</th>
+                                <th>Departure</th>
+                                <th>Arrival</th>
+                                <th>Seq.</th>
+                                <th>Flight Type</th>
+                                <th>Is Top Up</th>
+                                <th>Caterer Code</th>
+                                <th>Category</th>
+                            </tr>
+                        </thead>
+                        <tbody id="flights-table-body">
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">
+                                    No flights loaded. Trigger a fetch or select a CSV file.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Lower Layout: CSV list & Terminal Logs -->
+            <div class="dashboard-footer-grid">
+                <!-- Exported files list -->
+                <section class="card files-card">
+                    <h3>Generated CSV Logs</h3>
+                    <div id="csv-files-list" class="csv-list">
+                        <div class="text-muted text-center py-3">Scanning for CSVs...</div>
+                    </div>
+                </section>
+
+                <!-- Scrolling live logs console -->
+                <section class="card logs-card">
+                    <div class="logs-header">
+                        <h3>Live Automation Terminal</h3>
+                        <button class="btn-clear" onclick="clearTerminalLogs()">Clear</button>
+                    </div>
+                    <div id="logs-console" class="terminal-console">
+                        <div class="log-line text-muted">[System] Ready. Logging initialized...</div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Cart & Device Allocation Modal -->
+    <div id="allocation-modal" class="modal-backdrop hidden" onclick="closeAllocationModalOnOutsideClick(event)">
+        <div class="modal-card card">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modal-flight-title">Flight DEL-6092 Allocation</h2>
+                    <p id="modal-flight-subtitle" class="subtitle">Date: 04/06/2026 | Caterer: OFS | Aircraft Type: 4</p>
+                </div>
+                <button class="btn-close-modal" onclick="closeAllocationModal()">&times;</button>
+            </div>
+            
+            <div class="modal-body-grid">
+                <!-- Left: Cart Allocation -->
+                <div class="allocation-section">
+                    <h3>Cart Allocation</h3>
+                    <div class="allocation-subsections">
+                        <!-- FNB Table -->
+                        <div class="allocation-table-wrapper">
+                            <h4>FNB Carts</h4>
+                            <table class="modal-inner-table">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: left;">Position</th>
+                                        <th style="text-align: left;">Cart ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-fnb-carts-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- MHS Table -->
+                        <div class="allocation-table-wrapper">
+                            <h4>MHS Carts</h4>
+                            <table class="modal-inner-table">
+                                <thead>
+                                    <tr>
+                                        <th style="text-align: left;">Position</th>
+                                        <th style="text-align: left;">Cart ID</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="modal-mhs-carts-body">
+                                    <!-- Populated dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right: Device Allocation -->
+                <div class="allocation-section">
+                    <h3>Device Allocation</h3>
+                    <div class="allocation-table-wrapper">
+                        <table class="modal-inner-table">
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left;">Position</th>
+                                    <th style="text-align: left;">Device / Drawer ID</th>
+                                </tr>
+                            </thead>
+                            <tbody id="modal-devices-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" style="width: auto;" onclick="closeAllocationModal()">Cancel</button>
+                <button type="button" id="btn-update-devices" class="btn btn-accent" style="width: auto;" onclick="submitDeviceAllocation()">Update Device</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Popup Modal -->
+    <div id="custom-popup" class="modal-backdrop hidden" style="z-index: 9999;">
+        <div class="modal-card" style="position: relative; max-width: 400px; padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 16px; border: 1px solid var(--card-border); background: var(--bg-sidebar); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4); border-radius: 12px;">
+            <button type="button" id="btn-close-popup-cross" style="position: absolute; top: 12px; right: 16px; background: transparent; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; line-height: 1; transition: var(--transition);">&times;</button>
+            <div id="popup-icon" style="width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 8px;">
+                <!-- Icon injected dynamically -->
+            </div>
+            <h3 id="popup-title" style="margin: 0; font-size: 18px; font-weight: 700; color: #fff;">Notification</h3>
+            <p id="popup-message" style="margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; font-weight: 500;"></p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════
+         Bulk MPOS Upload Modal
+    ═══════════════════════════════════════════ -->
+    <div id="bulk-modal" class="hidden">
+        <div class="bulk-modal-card">
+
+            <!-- Header -->
+            <div class="bulk-modal-header">
+                <h2>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    Bulk MPOS Upload
+                </h2>
+                <button class="btn-bulk-close" onclick="closeBulkModal()">&times;</button>
+            </div>
+
+            <!-- Step indicator -->
+            <div class="bulk-steps">
+                <div class="bulk-step active" id="bulk-step-1" onclick="bulkClickStep(1)" style="cursor: pointer;">
+                    <span class="step-num">1</span><span>Upload &amp; Parse</span>
+                </div>
+                <div class="step-sep"></div>
+                <div class="bulk-step" id="bulk-step-2" onclick="bulkClickStep(2)" style="cursor: pointer;">
+                    <span class="step-num">2</span><span>Confirm</span>
+                </div>
+                <div class="step-sep"></div>
+                <div class="bulk-step" id="bulk-step-3" onclick="bulkClickStep(3)" style="cursor: pointer;">
+                    <span class="step-num">3</span><span>Processing &amp; Results</span>
+                </div>
+            </div>
+
+            <!-- Body -->
+            <div class="bulk-modal-body">
+
+                <!-- ── STEP 1: Upload ─────────────────── -->
+                <div class="bulk-step-panel active" id="bulk-panel-1">
+                    <div class="bulk-tabs">
+                        <button class="bulk-tab-btn active" data-tab="file" onclick="bulkSwitchTab('file')">📁 Upload File</button>
+                        <button class="bulk-tab-btn" data-tab="paste" onclick="bulkSwitchTab('paste')">📋 Paste Text</button>
+                    </div>
+
+                    <!-- File tab -->
+                    <div class="bulk-tab-pane active" id="bulk-tab-file">
+                        <div class="drop-zone" id="bulk-drop-zone">
+                            <input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.xlsx,.xls,.csv" onchange="bulkOnFileInput(this)">
+                            <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <p><strong>Drag &amp; drop your allocation table</strong></p>
+                            <p>or click to browse</p>
+                            <div class="drop-formats">JPG &nbsp;·&nbsp; PNG &nbsp;·&nbsp; WEBP &nbsp;·&nbsp; PDF &nbsp;·&nbsp; XLSX &nbsp;·&nbsp; XLS &nbsp;·&nbsp; CSV</div>
+                        </div>
+                        <div class="drop-zone-filename" id="bulk-drop-filename"></div>
+                        <div class="bulk-parse-btn">
+                            <button id="btn-bulk-parse" class="btn btn-accent" style="width:auto" onclick="document.querySelector('#bulk-tab-file input[type=file]').click()">Browse File</button>
+                        </div>
+                    </div>
+
+                    <!-- Paste tab -->
+                    <div class="bulk-tab-pane" id="bulk-tab-paste">
+                        <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">Paste your markdown or plain-text table below. Include the date header line if available.</p>
+                        <textarea id="bulk-paste-area" class="paste-area" placeholder="04.06.2026 MPOS ALLOCATION NIGHT SHIFT&#10;&#10;| SNO. | FLIGHT NO | L1 | R1 | R2 | R3 | R4 |&#10;| ---: | --------: | -- | --: | --: | --: | --: |&#10;| 70 | 382 | | 23284 | | | 20237 |"></textarea>
+                        <div class="bulk-parse-btn">
+                            <button id="btn-bulk-parse-paste" class="btn btn-accent" style="width:auto" onclick="bulkPasteAndParse()">Parse →</button>
+                        </div>
+                    </div>
+
+                    <!-- Warnings (parse errors) -->
+                    <div id="bulk-warnings" class="bulk-warnings"></div>
+                </div>
+
+                <!-- ── STEP 2: Confirm ────────────────── -->
+                <div class="bulk-step-panel" id="bulk-panel-2">
+                    <!-- Detected info -->
+                    <div class="bulk-detected-info">
+                        <div class="detected-field">
+                            <label for="bulk-confirm-date">Shift Date (DD-MM-YYYY)</label>
+                            <input type="text" id="bulk-confirm-date" class="form-control" placeholder="DD-MM-YYYY">
+                        </div>
+                        <div class="detected-field">
+                            <label for="bulk-confirm-shift">Shift</label>
+                            <select id="bulk-confirm-shift" class="form-control">
+                                <option value="">— Unknown —</option>
+                                <option value="NIGHT">Night</option>
+                                <option value="DAY">Day</option>
+                                <option value="MORNING">Morning</option>
+                                <option value="AFTERNOON">Afternoon</option>
+                                <option value="EVENING">Evening</option>
+                            </select>
+                        </div>
+                        <div class="detected-field">
+                            <label for="bulk-confirm-station">Station</label>
+                            <select id="bulk-confirm-station" class="form-control"></select>
+                        </div>
+                        <div class="detected-field">
+                            <label for="bulk-execution-mode-select">Execution Mode</label>
+                            <select id="bulk-execution-mode-select" class="form-control" onchange="bulkSetExecutionMode(this.value)">
+                                <option value="auto" selected>Auto-Pilot Mode</option>
+                                <option value="review">User-Review Mode</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Warnings -->
+                    <div id="bulk-warnings-confirm" class="bulk-warnings"></div>
+
+                    <!-- Preview -->
+                    <p style="font-size:12px;color:var(--text-muted);margin-bottom:8px;" id="bulk-confirm-summary"></p>
+                    <div class="bulk-preview-wrap">
+                        <table class="bulk-preview-table">
+                            <thead id="bulk-preview-thead"></thead>
+                            <tbody id="bulk-preview-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- ── STEP 3: Processing ─────────────── -->
+                <div class="bulk-step-panel" id="bulk-panel-3">
+                    <!-- Top Configuration Header: Auto-pilot toggle & Pro View switch -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; background: rgba(255,255,255,0.02); padding: 8px 16px; border-radius: 8px; border: 1px solid var(--card-border);">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div class="mode-toggle-wrapper" style="display: flex; align-items: center; gap: 8px;">
+                                <label style="font-size: 12px; font-weight: 700; color: var(--text-primary); cursor: pointer; display: flex; align-items: center; gap: 6px;">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" style="color: var(--primary);"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                                    Execution Mode:
+                                </label>
+                                <div class="execution-mode-btn-group" style="display: inline-flex; border: 1px solid var(--card-border); border-radius: 6px; overflow: hidden; background: rgba(0,0,0,0.25);">
+                                    <button type="button" class="btn-mode-select active" id="btn-mode-auto" onclick="bulkSetExecutionMode('auto')" style="padding: 4px 10px; font-size: 11px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 600; transition: var(--transition); border-radius: 0;">Auto-Pilot</button>
+                                    <button type="button" class="btn-mode-select" id="btn-mode-review" onclick="bulkSetExecutionMode('review')" style="padding: 4px 10px; font-size: 11px; border: none; background: transparent; color: var(--text-muted); cursor: pointer; font-weight: 600; transition: var(--transition); border-radius: 0;">User-Review</button>
+                                </div>
+                            </div>
+                            <div class="bulk-progress-bar-wrap id-progress-container show" id="bulk-progress-wrap" style="width: 150px; margin-bottom: 0; display: block; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden;">
+                                <div class="bulk-progress-bar" id="bulk-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), #a78bfa); transition: width 0.3s ease;"></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div class="pro-view-wrapper" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                                <label for="bulk-pro-view-toggle" style="font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer;">Pro View (Grid)</label>
+                                <div class="toggle-switch">
+                                    <input type="checkbox" id="bulk-pro-view-toggle" onchange="bulkToggleProView(this.checked)" checked>
+                                    <span class="slider"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Workspace Split: Dashboard/Visuals (Left), Live Progress Table (Mid) & Deep Flight Inspector (Right) -->
+                    <div class="bulk-step3-workspace" style="display: grid; grid-template-columns: 310px 1fr 330px; gap: 16px; margin-bottom: 8px; flex: 1; min-height: 0;">
+                        
+                        <!-- Left Column: SVG cabin, Stats, Matrix Graph, and Live Logs -->
+                        <div class="step3-left-col" style="display: flex; flex-direction: column; gap: 8px; min-height: 0;">
+                            
+                            <!-- SVG Cabin Map -->
+                            <div class="futuristic-card aircraft-map-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 12px; position: relative; flex-shrink: 0;">
+                                <span class="card-label" style="position: absolute; top: 10px; left: 16px;">Aircraft Telemetry Matrix</span>
+                                <div class="aircraft-svg-wrap" style="width: 100%; margin-top: 6px;">
+                                    <svg viewBox="0 0 400 120" class="aircraft-cabin-svg" id="aircraft-cabin-svg" style="width: 100%; height: auto; max-height: 85px;">
+                                        <!-- Fuselage outline -->
+                                        <path d="M 20,60 C 20,40 50,20 100,20 L 320,20 C 370,20 380,40 380,60 C 380,80 370,100 320,100 L 100,100 C 50,100 20,80 20,60 Z" fill="none" stroke="#2a3045" stroke-width="2" />
+                                        <line x1="80" y1="20" x2="80" y2="100" stroke="#1d2235" stroke-dasharray="3,3" />
+                                        <line x1="180" y1="20" x2="180" y2="100" stroke="#1d2235" stroke-dasharray="3,3" />
+                                        <line x1="280" y1="20" x2="280" y2="100" stroke="#1d2235" stroke-dasharray="3,3" />
+                                        
+                                        <!-- Left side doors/galleys (top of diagram) -->
+                                        <g id="svg-door-L1" class="svg-door" transform="translate(70, 20)">
+                                            <rect x="-10" y="-8" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="-12" text-anchor="middle" font-size="8" fill="#8f9bb3">L1</text>
+                                            <circle cx="0" cy="-3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+                                        <g id="svg-door-L2" class="svg-door" transform="translate(150, 20)">
+                                            <rect x="-10" y="-8" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="-12" text-anchor="middle" font-size="8" fill="#8f9bb3">L2</text>
+                                            <circle cx="0" cy="-3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+                                        <g id="svg-door-L3" class="svg-door" transform="translate(230, 20)">
+                                            <rect x="-10" y="-8" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="-12" text-anchor="middle" font-size="8" fill="#8f9bb3">L3</text>
+                                            <circle cx="0" cy="-3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+                                        <g id="svg-door-L4" class="svg-door" transform="translate(310, 20)">
+                                            <rect x="-10" y="-8" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="-12" text-anchor="middle" font-size="8" fill="#8f9bb3">L4</text>
+                                            <circle cx="0" cy="-3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+
+                                        <!-- Right side doors/galleys (bottom of diagram) -->
+                                        <g id="svg-door-R1" class="svg-door" transform="translate(70, 100)">
+                                            <rect x="-10" y="-2" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="16" text-anchor="middle" font-size="8" fill="#8f9bb3">R1</text>
+                                            <circle cx="0" cy="3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+                                        <g id="svg-door-R2" class="svg-door" transform="translate(150, 100)">
+                                            <rect x="-10" y="-2" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="16" text-anchor="middle" font-size="8" fill="#8f9bb3">R2</text>
+                                            <circle cx="0" cy="3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+                                        <g id="svg-door-R3" class="svg-door" transform="translate(230, 100)">
+                                            <rect x="-10" y="-2" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="16" text-anchor="middle" font-size="8" fill="#8f9bb3">R3</text>
+                                            <circle cx="0" cy="3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+                                        <g id="svg-door-R4" class="svg-door" transform="translate(310, 100)">
+                                            <rect x="-10" y="-2" width="20" height="10" rx="2" fill="#151a2e" stroke="#4a526d" />
+                                            <text x="0" y="16" text-anchor="middle" font-size="8" fill="#8f9bb3">R4</text>
+                                            <circle cx="0" cy="3" r="3" class="door-status-led led-inactive" />
+                                        </g>
+
+                                        <!-- Cockpit detail -->
+                                        <path d="M 320,35 C 340,35 360,45 370,60 C 360,75 340,85 320,85 Z" fill="none" stroke="#2a3045" stroke-dasharray="2,2" />
+                                        
+                                        <!-- Legend / Status text overlay inside SVG -->
+                                        <text x="200" y="65" id="svg-telemetry-text" text-anchor="middle" font-family="Outfit, sans-serif" font-size="10" fill="#4f72f5" font-weight="bold" letter-spacing="1px">SYSTEM IDLE</text>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Stats Cards Grid -->
+                            <div class="bulk-stats-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex-shrink: 0;">
+                                <div class="futuristic-card stats-card-progress" style="padding: 6px 12px;">
+                                    <span class="card-label" style="margin-bottom: 2px;">Progress</span>
+                                    <div class="card-val-wrap" style="margin-top: 2px;">
+                                        <span class="card-value" id="stat-progress-val" style="font-size: 16px;">0 / 0</span>
+                                        <span class="card-subtext" id="stat-progress-pct">0%</span>
+                                    </div>
+                                </div>
+                                <div class="futuristic-card stats-card-success" style="padding: 6px 12px;">
+                                    <span class="card-label" style="margin-bottom: 2px;">Successful Writes</span>
+                                    <div class="card-val-wrap" style="margin-top: 2px;">
+                                        <span class="card-value text-success" id="stat-success-val" style="font-size: 16px;">0</span>
+                                        <span class="card-subtext" id="stat-success-pct">100% Rate</span>
+                                    </div>
+                                </div>
+                                <div class="futuristic-card stats-card-sleep" style="padding: 6px 12px;">
+                                    <span class="card-label" style="margin-bottom: 2px;">Anti-Bot Sleep</span>
+                                    <div class="card-val-wrap" style="margin-top: 2px;">
+                                        <span class="card-value text-purple" id="stat-sleep-val" style="font-size: 16px;">0.0s</span>
+                                        <span class="card-subtext" id="stat-sleep-lbl">Ready</span>
+                                    </div>
+                                </div>
+                                <div class="futuristic-card stats-card-errors" style="padding: 6px 12px;">
+                                    <span class="card-label" style="margin-bottom: 2px;">Issues Alert</span>
+                                    <div class="card-val-wrap" style="margin-top: 2px;">
+                                        <span class="card-value text-danger" id="stat-errors-val" style="font-size: 16px;">0</span>
+                                        <span class="card-subtext" id="stat-errors-lbl">0 Errors</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Allocation Heatmap / Distribution Graph -->
+                            <div class="futuristic-card allocation-graph-card" style="padding: 8px 12px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
+                                <span class="card-label" style="margin-bottom: 2px;">Position Write Volume Matrix</span>
+                                <div class="allocation-bar-graph" id="allocation-bar-graph" style="display: flex; justify-content: space-between; align-items: flex-end; height: 45px; padding-top: 4px; border-bottom: 1px solid rgba(255,255,255,0.08); gap: 4px;">
+                                    <!-- Dynamic Bars will go here: L1, L2, L3, L4, R1, R2, R3, R4, STDBY1, STDBY2 -->
+                                </div>
+                                <div class="allocation-graph-labels" style="display: flex; justify-content: space-between; font-size: 8px; font-family: var(--font-code); color: var(--text-muted); font-weight: 600; padding: 0 4px;">
+                                    <span>L1</span><span>L2</span><span>L3</span><span>L4</span><span>R1</span><span>R2</span><span>R3</span><span>R4</span><span>SB1</span><span>SB2</span>
+                                </div>
+                            </div>
+
+                            <!-- Live Terminal Logs Section -->
+                            <div class="logs-section" style="flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                                    <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Live Process Terminal Logs</span>
+                                    <div class="log-filter-selector" style="display: flex; gap: 4px; font-size: 11px;">
+                                        <span class="badge badge-secondary active" id="log-filter-all" onclick="bulkFilterLogs('all')" style="cursor: pointer; padding: 2px 6px;">All</span>
+                                        <span class="badge badge-secondary" id="log-filter-warnings" onclick="bulkFilterLogs('warn')" style="cursor: pointer; padding: 2px 6px;">Errors/Warnings</span>
+                                    </div>
+                                </div>
+                                <div class="live-feed" id="bulk-live-feed" style="flex: 1; min-height: 60px; margin-bottom: 0; overflow-y: auto;"></div>
+                            </div>
+
+                        </div>
+
+                        <!-- Middle Column: Search, Filters, Live Progress Table, Clipboard, Summary -->
+                        <div class="step3-mid-col" style="display: flex; flex-direction: column; gap: 8px; min-height: 0;">
+                            
+                            <!-- Search & Filters Control Bar -->
+                            <div class="bulk-step3-controls" style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-shrink: 0;">
+                                <div class="bulk-step3-filters" style="display: flex; gap: 4px;">
+                                    <button type="button" class="btn btn-secondary active" id="btn-filter-all" onclick="bulkFilterStep3('all')" style="padding: 4px 10px; font-size: 11px; min-width: auto; height: 28px;">All</button>
+                                    <button type="button" class="btn btn-secondary" id="btn-filter-success" onclick="bulkFilterStep3('success')" style="padding: 4px 10px; font-size: 11px; min-width: auto; height: 28px;">Success</button>
+                                    <button type="button" class="btn btn-secondary" id="btn-filter-failed" onclick="bulkFilterStep3('failed')" style="padding: 4px 10px; font-size: 11px; min-width: auto; height: 28px;">Failed</button>
+                                    <button type="button" class="btn btn-secondary" id="btn-filter-skipped" onclick="bulkFilterStep3('skipped')" style="padding: 4px 10px; font-size: 11px; min-width: auto; height: 28px;">Skipped</button>
+                                </div>
+                                <div class="search-box" style="flex: 1; min-width: 120px; height: 28px; padding: 0 8px; position: relative;">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" class="search-icon" style="position: absolute; left: 8px; top: 8px; color: var(--text-muted);">
+                                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                                    </svg>
+                                    <input type="text" id="input-step3-search" placeholder="Search flights..." oninput="bulkSearchStep3(this.value)" style="padding-left: 20px; font-size: 11px; width: 100%; height: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); border-radius: 4px; color: #fff; outline: none;">
+                                </div>
+                            </div>
+
+                            <!-- Live Progress Table -->
+                            <div class="bulk-live-table-container" id="bulk-live-table-container" style="flex: 1; min-height: 0; overflow: auto; background: rgba(0,0,0,0.15); border: 1px solid var(--card-border); border-radius: 8px; margin-bottom: 0;">
+                                <table class="bulk-live-table" id="bulk-live-table">
+                                    <thead id="bulk-live-thead">
+                                        <!-- Populated dynamically based on Pro View toggle -->
+                                    </thead>
+                                    <tbody id="bulk-live-table-body">
+                                        <!-- Populated dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Data Recovery Clipboard Center -->
+                            <div class="data-recovery-center" style="display: flex; gap: 8px; background: rgba(0,0,0,0.15); border: 1px dashed var(--card-border); padding: 8px 10px; border-radius: 8px; align-items: center; justify-content: space-between; flex-shrink: 0;">
+                                <div style="display: flex; align-items: center; gap: 4px;">
+                                    <span style="font-size: 12px;">💾</span>
+                                    <span style="font-size: 10.5px; font-weight: 600; color: var(--text-muted);">Clipboard Recovery Center</span>
+                                </div>
+                                <div style="display: flex; gap: 4px;">
+                                    <button type="button" class="btn btn-secondary" onclick="bulkExportReportCSV('success')" style="padding: 2px 8px; font-size: 10px; height: 24px; min-width: auto; display: inline-flex; align-items: center; gap: 2px;">
+                                        CSV Success
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="bulkExportReportCSV('failed')" style="padding: 2px 8px; font-size: 10px; height: 24px; min-width: auto; display: inline-flex; align-items: center; gap: 2px;">
+                                        CSV Failed
+                                    </button>
+                                    <button type="button" class="btn btn-secondary" onclick="bulkExportFullLogs()" style="padding: 2px 8px; font-size: 10px; height: 24px; min-width: auto; display: inline-flex; align-items: center; gap: 2px;">
+                                        Logs
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Summary -->
+                            <div class="bulk-summary" id="bulk-summary" style="margin-top: 0; flex-shrink: 0;"></div>
+
+                        </div>
+
+                        <!-- Right Column: Deep One-by-One Flight Inspector -->
+                        <div class="step3-right-col" style="display: flex; flex-direction: column; height: 100%; min-height: 0;">
+                            <div class="futuristic-card inspector-panel-card" style="display: flex; flex-direction: column; height: 100%; padding: 10px 12px;">
+                                <div class="inspector-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 8px; flex-shrink: 0;">
+                                    <div>
+                                        <span class="card-label" style="margin-bottom: 2px;">Flight Inspector</span>
+                                        <h3 id="inspect-flight-title" style="margin:0; font-size: 15px; font-weight: 700; color: #fff;">No Flight Selected</h3>
+                                    </div>
+                                    <!-- Navigation -->
+                                    <div style="display: flex; gap: 4px;">
+                                        <button type="button" class="btn btn-secondary" onclick="bulkInspectPrev()" style="padding: 2px 8px; font-size: 11px; height: 26px; min-width: auto;">◀ Prev</button>
+                                        <button type="button" class="btn btn-secondary" onclick="bulkInspectNext()" style="padding: 2px 8px; font-size: 11px; height: 26px; min-width: auto;">Next ▶</button>
+                                    </div>
+                                </div>
+
+                                <!-- Inspector Body (Scrollable: Stats Grid, Timeline, Position Editor Form) -->
+                                <div id="inspector-body-content" style="flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; min-height: 0; padding-right: 4px; margin-bottom: 8px;">
+                                    
+                                    <!-- Flight Stats Grid -->
+                                    <div class="inspector-stats-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; font-size: 11px; flex-shrink: 0;">
+                                        <div class="meta-field">
+                                            <span class="text-muted">Caterer:</span>
+                                            <strong id="inspect-meta-caterer" style="color: #fff; margin-left: 4px;">—</strong>
+                                        </div>
+                                        <div class="meta-field">
+                                            <span class="text-muted">Aircraft:</span>
+                                            <strong id="inspect-meta-aircraft" style="color: #fff; margin-left: 4px;">—</strong>
+                                        </div>
+                                        <div class="meta-field">
+                                            <span class="text-muted">Route:</span>
+                                            <strong id="inspect-meta-route" style="color: #fff; margin-left: 4px;">—</strong>
+                                        </div>
+                                        <div class="meta-field">
+                                            <span class="text-muted">Date:</span>
+                                            <strong id="inspect-meta-date" style="color: #fff; margin-left: 4px;">—</strong>
+                                        </div>
+                                        <div class="meta-field">
+                                            <span class="text-muted">STD:</span>
+                                            <strong id="inspect-meta-std" style="color: #fff; margin-left: 4px;">—</strong>
+                                        </div>
+                                        <div class="meta-field">
+                                            <span class="text-muted">STA:</span>
+                                            <strong id="inspect-meta-sta" style="color: #fff; margin-left: 4px;">—</strong>
+                                        </div>
+                                    </div>
+
+                                    <!-- Visual Step Timeline -->
+                                    <div class="inspector-timeline" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.25); border-radius: 6px; padding: 6px 10px; border: 1px solid rgba(255,255,255,0.03); flex-shrink: 0;">
+                                        <div class="timeline-step" id="timeline-step-match" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                            <span class="timeline-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #3a3f58;"></span>
+                                            <span class="timeline-lbl" style="font-size: 8px; color: var(--text-muted); font-weight: bold;">Match CSV</span>
+                                        </div>
+                                        <div class="timeline-step-connector" style="flex: 1; height: 2px; background: rgba(255,255,255,0.06); margin: 0 4px; transform: translateY(-6px);"></div>
+                                        <div class="timeline-step" id="timeline-step-fetch" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                            <span class="timeline-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #3a3f58;"></span>
+                                            <span class="timeline-lbl" style="font-size: 8px; color: var(--text-muted); font-weight: bold;">Fetch Portal</span>
+                                        </div>
+                                        <div class="timeline-step-connector" style="flex: 1; height: 2px; background: rgba(255,255,255,0.06); margin: 0 4px; transform: translateY(-6px);"></div>
+                                        <div class="timeline-step" id="timeline-step-write" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                            <span class="timeline-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #3a3f58;"></span>
+                                            <span class="timeline-lbl" style="font-size: 8px; color: var(--text-muted); font-weight: bold;">Write Asset</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Device Details & Review Form -->
+                                    <div class="inspector-form-wrapper" style="display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+                                            <span style="font-size: 11px; font-weight: 700; color: var(--text-muted);">Position Device Editor</span>
+                                            <span id="inspect-flight-status-badge" class="badge badge-secondary">Pending</span>
+                                        </div>
+                                        <div class="inspector-positions-editor" id="inspector-positions-editor" style="display: flex; flex-direction: column; gap: 4px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.06); padding: 6px; border-radius: 6px; background: rgba(0,0,0,0.15); flex: 1; min-height: 0;">
+                                            <div class="text-muted text-center py-4" style="font-size: 11px;">Select a flight from the table or use navigation controls to inspect.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Pinned Footer: Action Buttons, Error card, and Server Response Panel -->
+                                <div class="inspector-pinned-footer" style="display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 6px; flex-shrink: 0;">
+                                    <!-- Single Flight Action Buttons -->
+                                    <div class="inspector-actions" style="display: flex; justify-content: flex-end; gap: 6px;">
+                                        <button type="button" class="btn btn-secondary" id="btn-inspect-refetch" onclick="bulkInspectRefetch()" style="padding: 4px 10px; font-size: 11px; min-width: auto; height: 28px;" disabled>Refetch Portal</button>
+                                        <button type="button" class="btn btn-secondary" id="btn-inspect-skip" onclick="bulkInspectSkip()" style="padding: 4px 10px; font-size: 11px; min-width: auto; height: 28px;" disabled>Skip Flight</button>
+                                        <button type="button" class="btn btn-accent" id="btn-inspect-submit" onclick="bulkInspectSubmit()" style="padding: 4px 10px; font-size: 11px; min-width: auto; height: 28px;" disabled>Save &amp; Submit</button>
+                                    </div>
+
+                                    <!-- Highlighted Error block -->
+                                    <div id="inspector-error-card" style="display: none; background: rgba(255, 82, 82, 0.08); border: 1px solid rgba(255, 82, 82, 0.25); border-radius: 6px; padding: 8px 12px; font-size: 11px; color: var(--danger); position: relative;">
+                                        <strong style="display: block; margin-bottom: 2px;">Execution Error:</strong>
+                                        <span id="inspect-error-msg"></span>
+                                        <button type="button" class="btn btn-secondary" onclick="bulkCopyInspectError()" style="position: absolute; right: 8px; top: 6px; padding: 2px 6px; font-size: 10px; height: 20px; min-width: auto;">Copy Error</button>
+                                    </div>
+
+                                    <!-- Server Response Panel -->
+                                    <div class="server-response-panel collapsed" id="server-response-panel">
+                                        <div class="srv-tabs-bar" style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div style="display: flex; flex: 1;">
+                                                <button type="button" class="srv-tab-btn active" id="srv-tab-portal" onclick="bulkSwitchServerTab('portal')">📡 Portal</button>
+                                                <button type="button" class="srv-tab-btn" id="srv-tab-write" onclick="bulkSwitchServerTab('write')">📨 Write</button>
+                                                <button type="button" class="srv-tab-btn" id="srv-tab-raw" onclick="bulkSwitchServerTab('raw')">{&nbsp;} JSON</button>
+                                            </div>
+                                            <button type="button" id="srv-collapse-btn" onclick="bulkToggleServerPanel()" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; font-size: 10px; padding: 6px 12px; font-weight: bold; outline: none; border-left: 1px solid rgba(255, 255, 255, 0.08); transition: all 0.2s ease;">▲</button>
+                                        </div>
+                                        <div class="srv-response-body" id="srv-response-body" style="padding: 6px; max-height: 75px; overflow-y: auto; display: none;">
+                                            <div class="srv-tab-content active" id="srv-content-portal">
+                                                <div class="text-muted" style="font-size: 11px; text-align: center; padding: 12px;">Waiting for portal fetch...</div>
+                                            </div>
+                                            <div class="srv-tab-content" id="srv-content-write">
+                                                <div class="text-muted" style="font-size: 11px; text-align: center; padding: 12px;">No write response yet</div>
+                                            </div>
+                                            <div class="srv-tab-content" id="srv-content-raw">
+                                                <pre class="srv-json-pre" id="srv-json-raw" style="margin: 0; padding: 4px; font-size: 9px;">{ }</pre>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div><!-- /bulk-modal-body -->
+
+            <!-- Footer -->
+            <div class="bulk-modal-footer">
+                <button id="btn-bulk-back" class="btn btn-secondary" style="width:auto;display:none" onclick="bulkGoToStep(1)">← Re-upload</button>
+                <button id="btn-bulk-confirm" class="btn btn-accent" style="width:auto;display:none" onclick="bulkRunAutomation()">Run Automation →</button>
+                <button id="btn-bulk-retry" class="btn btn-primary" style="width:auto;display:none" onclick="bulkRetryFailed()">Retry Failed Flights</button>
+                <button id="btn-bulk-close2" class="btn btn-secondary" style="width:auto;display:none" onclick="closeBulkModal()">Close</button>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Spinner keyframes -->
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+    </style>
+
+    <script src="/static/app.js"></script>
+    <script src="/static/bulk_upload.js"></script>
+</body>
+</html>
