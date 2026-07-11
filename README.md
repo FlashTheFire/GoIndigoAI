@@ -1,7 +1,7 @@
 <div align="center">
 
 <!-- ✈️ Animated Header -->
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0A1172,50:1E3F66,100:00BFFF&height=200&section=header&text=GoIndigoAI&fontSize=80&fontColor=C6FF00&animation=fadeIn&fontAlignY=35&desc=Automated%20Flight%20Information%20%26%20Bulk%20MPOS%20Allocation%20System&descAlignY=55&descSize=18&descColor=ffffff" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0A1172,50:1E3F66,100:00BFFF&height=200&section=header&text=GoIndigoAI&fontSize=80&fontColor=C6FF00&animation=fadeIn&fontAlignY=35&desc=Automated%20Flight%20Information%20and%20Bulk%20MPOS%20Allocation%20System&descAlignY=55&descSize=18&descColor=ffffff" width="100%"/>
 
 <!-- ⭐ Status Badges -->
 <p>
