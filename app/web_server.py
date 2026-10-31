@@ -851,10 +851,12 @@ async def start_auto_auth():
     try:
         # Run in a separate thread to prevent blocking the async event loop
         result = await asyncio.to_thread(automate_authentication)
-        if result["status"] == "success":
+        if result.get("status") == "success":
             return result
         else:
-            raise HTTPException(status_code=400, detail=result["message"])
+            raise HTTPException(status_code=400, detail=result.get("message", "Authentication failed"))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Auto auth failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

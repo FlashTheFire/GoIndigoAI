@@ -60,9 +60,9 @@ def test_validate_cookie_format_invalid_cops():
 
 def test_cors_middleware_allowed_origins():
     # Localhost origin should match
-    headers = {"Origin": "http://localhost:8000"}
+    headers = {"Origin": "http://localhost:8888"}
     response = client.options("/api/status", headers=headers)
-    assert response.headers.get("access-control-allow-origin") == "http://localhost:8000"
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:8888"
 
     # 127.0.0.1 origin should match
     headers = {"Origin": "http://127.0.0.1"}
@@ -80,7 +80,7 @@ def test_cors_middleware_disallowed_origin():
 def test_pna_header_injection():
     # Preflight options request requesting PNA should receive Access-Control-Allow-Private-Network: true
     headers = {
-        "Origin": "http://localhost:8000",
+        "Origin": "http://localhost:8888",
         "Access-Control-Request-Private-Network": "true"
     }
     response = client.options("/api/status", headers=headers)

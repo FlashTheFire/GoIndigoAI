@@ -264,7 +264,7 @@ Start the local web dashboard:
 ```bash
 python main.py
 ```
-Open **`http://127.0.0.1:8000`** in your browser.
+Open **`http://127.0.0.1:8888`** in your browser.
 
 ---
 

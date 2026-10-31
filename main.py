@@ -18,7 +18,7 @@ def main() -> None:
     parser.add_argument("--cli", action="store_true", help="Run the CLI scheduler instead of the web dashboard")
     parser.add_argument("--date", type=str, default=default_date, help="Target date for the API request (MM/DD/YYYY)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address to bind the web server")
-    parser.add_argument("--port", type=int, default=8000, help="Port to bind the web server")
+    parser.add_argument("--port", type=int, default=8888, help="Port to bind the web server")
     parser.add_argument("--ssl-keyfile", type=str, default=None, help="SSL key file path for HTTPS")
     parser.add_argument("--ssl-certfile", type=str, default=None, help="SSL certificate file path for HTTPS")
     args = parser.parse_args()
